@@ -1,0 +1,17 @@
+services:
+  agent_product:
+    build: .
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8140:8000"
+    volumes:
+      - .:/app
+
+    networks:
+    - cluster
+
+networks:
+  cluster:
+    external: true

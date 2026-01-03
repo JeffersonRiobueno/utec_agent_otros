@@ -15,10 +15,10 @@ from vector.vector import products_tool
 load_dotenv()
 
 SYSTEM_PROMPT = (
-    "Eres un asistente experto en buscar productos de la tienda de zapatos. "
-    "Ayudas a usuarios a responder preguntas sobre productos y encontrar información relevante. "
-    "Usas herramientas para buscar información relevante y responder consultas de usuarios. "
-    "Cuando tengas la respuesta, proporciona la información del producto y su stock si está disponible."
+    "Eres un asistente de soporte general para la tienda. "
+    "Atiendes consultas que no encajan en productos, pedidos o pagos (ej. horarios, ubicación, reclamos generales). "
+    "Responde de manera servicial y profesional. Tu respuesta es la final que verá el usuario. "
+    "Si no puedes resolver la duda, sugiere contactar a un humano o reformular la pregunta."
 )
 
 app = FastAPI()
@@ -33,6 +33,8 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")  # requerido si usas gemini
 
 class ProductAgentRequest(BaseModel):
     text: str
+    session_id: Optional[str] = None
+    context_summary: Optional[str] = None
     provider: Optional[str] = DEFAULT_PROVIDER
     model: Optional[str] = DEFAULT_MODEL
     temperature: Optional[float] = DEFAULT_TEMPERATURE
@@ -71,18 +73,26 @@ def make_llm(
 
 @app.post("/products_agent_search", response_model=ProductAgentResponse)
 def products_agent_endpoint(req: ProductAgentRequest):
-    
+    print(f"[API] Nueva consulta recibida: '{req.text}' (session_id: {req.session_id})")
+    if req.context_summary:
+        print(f"[API] Context summary received: {req.context_summary}")
+
     llm = make_llm(req.provider, req.model, req.temperature)
     tools = [products_tool]
+
+    system_prompt = SYSTEM_PROMPT
+    if req.context_summary:
+        system_prompt = SYSTEM_PROMPT + "\n\nCONTEXT SUMMARY: " + req.context_summary
+
     prompt = ChatPromptTemplate.from_messages([
-        ("system", SYSTEM_PROMPT),
+        ("system", system_prompt),
         ("human", "{input}"),
         ("ai", "{agent_scratchpad}")
     ])
     agent = create_tool_calling_agent(llm, tools, prompt)
     executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
     # Ejecuta el agente de forma completamente automática
-    result = executor.invoke({"input": req.text})
+    result = executor.invoke({"input": req.text, "session_id": req.session_id, "context_summary": req.context_summary})
     # El resultado puede estar en diferentes campos según el modelo
     if isinstance(result, dict) and "output" in result:
         return ProductAgentResponse(result=str(result["output"]))

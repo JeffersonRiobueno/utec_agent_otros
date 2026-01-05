@@ -1,0 +1,11 @@
+id,pregunta,respuesta,categoria
+1,"¿Cuáles son los tiempos de entrega para pedidos en Lima?","Los pedidos en Lima se entregan entre 1-3 días hábiles después de la confirmación del pago. Para distritos periféricos puede tomar hasta 5 días hábiles.",entrega
+2,"¿Hacen envíos fuera de Lima?","Sí, realizamos envíos a nivel nacional en Perú. Los tiempos varían según la ubicación: 3-7 días hábiles para ciudades principales y hasta 10 días para zonas rurales.",entrega
+3,"¿Cuál es la política de devoluciones?","Aceptamos devoluciones dentro de 30 días de la recepción del producto, siempre que esté en su empaque original y sin uso. El cliente cubre los costos de envío de devolución.",devoluciones
+4,"¿Puedo cambiar un producto?","Sí, aceptamos cambios dentro de 15 días de la compra. El producto debe estar en perfectas condiciones. Los costos de envío para el cambio corren por cuenta del cliente.",cambios
+5,"¿Qué métodos de pago aceptan?","Aceptamos pagos con tarjeta de crédito/débito, Yape, Plin y transferencias bancarias. Para pagos contra entrega solo en Lima Metropolitana.",pagos
+6,"¿Los precios incluyen IGV?","Sí, todos nuestros precios incluyen el IGV (18%). No hay costos adicionales por impuestos.",precios
+7,"¿Ofrecen garantía en los productos?","Sí, nuestros productos tienen garantía de 6 meses contra defectos de fabricación. Para accesorios de cuero, la garantía es de 12 meses.",garantia
+8,"¿Cómo puedo rastrear mi pedido?","Una vez despachado tu pedido, recibirás un código de seguimiento por WhatsApp y email. Puedes rastrearlo en la página web del courier.",rastreo
+9,"¿Qué hago si mi pedido llega dañado?","Si tu pedido llega dañado, contáctanos inmediatamente con fotos del producto y empaque. Te enviaremos un reemplazo sin costo adicional.",daños
+10,"¿Tienen tienda física?","Actualmente operamos solo de forma online. Puedes visitarnos virtualmente a través de nuestro sitio web y WhatsApp.",ubicacion

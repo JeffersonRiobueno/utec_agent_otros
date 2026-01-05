@@ -10,15 +10,18 @@ from langchain_openai import ChatOpenAI
 from langchain_community.chat_models import ChatOllama
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 
-from vector.vector import products_tool
+from vector.vector import faq_tool, get_qdrant_faq_collection
+from langchain_core.documents import Document
+from typing import List, Dict
 
 load_dotenv()
 
 SYSTEM_PROMPT = (
-    "Eres un asistente de soporte general para la tienda. "
-    "Atiendes consultas que no encajan en productos, pedidos o pagos (ej. horarios, ubicación, reclamos generales). "
-    "Responde de manera servicial y profesional. Tu respuesta es la final que verá el usuario. "
-    "Si no puedes resolver la duda, sugiere contactar a un humano o reformular la pregunta."
+    "Eres un asistente de soporte especializado en preguntas frecuentes de la tienda. "
+    "Tu objetivo es responder consultas comunes sobre la tienda usando la base de conocimientos de FAQs. "
+    "Tienes acceso a una herramienta: `faq_search_tool`. Úsala SIEMPRE para buscar información relevante. "
+    "IMPORTANTE: La herramienta te devolverá respuestas de FAQs. TU TRABAJO es adaptar esa información a la consulta del usuario de forma amable y útil. "
+    "Si la herramienta no encuentra nada relevante, sugiere contactar soporte humano."
 )
 
 app = FastAPI()
@@ -31,7 +34,7 @@ DEFAULT_TEMPERATURE = float(os.getenv("MODEL_TEMPERATURE", "0.2"))
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")  # requerido si usas gemini
 
-class ProductAgentRequest(BaseModel):
+class KnowledgeAgentRequest(BaseModel):
     text: str
     session_id: Optional[str] = None
     context_summary: Optional[str] = None
@@ -39,7 +42,7 @@ class ProductAgentRequest(BaseModel):
     model: Optional[str] = DEFAULT_MODEL
     temperature: Optional[float] = DEFAULT_TEMPERATURE
 
-class ProductAgentResponse(BaseModel):
+class KnowledgeAgentResponse(BaseModel):
     result: str
 
 
@@ -71,18 +74,16 @@ def make_llm(
 
     raise ValueError(f"Proveedor LLM no soportado: {provider}. Usa: openai | ollama | gemini")
 
-@app.post("/products_agent_search", response_model=ProductAgentResponse)
-def products_agent_endpoint(req: ProductAgentRequest):
+@app.post("/knowledge_agent_search", response_model=KnowledgeAgentResponse)
+def knowledge_agent_endpoint(req: KnowledgeAgentRequest):
     print(f"[API] Nueva consulta recibida: '{req.text}' (session_id: {req.session_id})")
-    if req.context_summary:
-        print(f"[API] Context summary received: {req.context_summary}")
+    # Ignorar context_summary, solo usar el mensaje del usuario
 
     llm = make_llm(req.provider, req.model, req.temperature)
-    tools = [products_tool]
+    tools = [faq_tool]
 
     system_prompt = SYSTEM_PROMPT
-    if req.context_summary:
-        system_prompt = SYSTEM_PROMPT + "\n\nCONTEXT SUMMARY: " + req.context_summary
+    # No incluir context_summary
 
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
@@ -92,12 +93,60 @@ def products_agent_endpoint(req: ProductAgentRequest):
     agent = create_tool_calling_agent(llm, tools, prompt)
     executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
     # Ejecuta el agente de forma completamente automática
-    result = executor.invoke({"input": req.text, "session_id": req.session_id, "context_summary": req.context_summary})
+    result = executor.invoke({"input": req.text, "session_id": req.session_id})
     # El resultado puede estar en diferentes campos según el modelo
     if isinstance(result, dict) and "output" in result:
-        return ProductAgentResponse(result=str(result["output"]))
-    return ProductAgentResponse(result=str(result))
+        return KnowledgeAgentResponse(result=str(result["output"]))
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+@app.get("/list_faqs")
+def list_faqs():
+    """Endpoint para listar todas las FAQs en Qdrant."""
+    try:
+        vectorstore = get_qdrant_faq_collection()
+        # Obtener todos los puntos de la colección
+        points = vectorstore.client.scroll(collection_name="faq_kb", limit=100)[0]  # scroll devuelve (points, next_page_offset)
+        faqs = []
+        for point in points:
+            payload = point.payload
+            metadata = payload.get("metadata", {})
+            faqs.append({
+                "id": point.id,
+                "pregunta": metadata.get("pregunta"),
+                "respuesta": metadata.get("respuesta"),
+                "categoria": metadata.get("categoria")
+            })
+        return {"faqs": faqs, "total": len(faqs)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+class FAQUpdateRequest(BaseModel):
+    faqs: List[Dict[str, str]]  # Lista de {"id": str, "pregunta": str, "respuesta": str, "categoria": str}
+
+@app.post("/update_faqs")
+def update_faqs_endpoint(req: FAQUpdateRequest):
+    """Endpoint para actualizar FAQs en batch. Si id existe, actualiza; si no, inserta."""
+    try:
+        vectorstore = get_qdrant_faq_collection()
+        
+        documents = []
+        ids = []
+        for faq in req.faqs:
+            content = f"Pregunta: {faq['pregunta']}\nRespuesta: {faq['respuesta']}\nCategoría: {faq['categoria']}"
+            doc = Document(
+                page_content=content,
+                metadata={
+                    "id": faq['id'],
+                    "pregunta": faq['pregunta'],
+                    "respuesta": faq['respuesta'],
+                    "categoria": faq['categoria']
+                }
+            )
+            documents.append(doc)
+            ids.append(faq['id'])
+        
+        # Upsert
+        vectorstore.add_documents(documents, ids=ids)
+        return {"message": f"Actualizado {len(documents)} FAQs exitosamente."}
+    except Exception as e:
+        return {"error": str(e)}

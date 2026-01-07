@@ -42,13 +42,10 @@ Utiliza embeddings para búsqueda semántica en una base de conocimientos de FAQ
    ```
 
 5. **Configura el archivo `.env`:**
-   - Usa `EMBEDDINGS_PROVIDER=ollama` y `OLLAMA_BASE_URL=http://localhost:11434` para embeddings locales.
-   - Usa `EMBEDDINGS_PROVIDER=gemini` para embeddings con Google Gemini.
-   - Usa `EMBEDDINGS_PROVIDER=openai` para embeddings con OpenAI.
+  - Usa `EMBEDDINGS_PROVIDER=openai` para embeddings con OpenAI (Gemini/Ollama eliminados).
 
 6. **Asegúrate de tener el modelo de embeddings disponible:**
-   - Para Ollama: `ollama pull nomic-embed-text`
-   - Para Gemini/OpenAI: configura las API keys correspondientes
+  - Configura las API keys necesarias para OpenAI (`OPENAI_API_KEY`).
 
 7. **Ingesta FAQs en Qdrant:**
    ```
@@ -78,7 +75,7 @@ Busca respuestas relevantes a una consulta usando el agente con herramientas.
   "text": "¿Cuáles son los tiempos de entrega?",
   "session_id": "optional-session-id",
   "context_summary": "optional-context",
-  "provider": "openai|ollama|gemini",
+  "provider": "openai",
   "model": "model-name",
   "temperature": 0.2
 }
@@ -140,7 +137,7 @@ Actualiza FAQs en batch (inserta o actualiza existentes).
 - Qdrant debe estar corriendo en la versión 1.6.9 para compatibilidad con langchain-community.
 - El archivo de FAQs de ejemplo está en `data/faq_sample.csv`.
 - El agente usa LangChain AgentExecutor con herramientas para búsqueda automática.
-- Compatible con múltiples proveedores de LLM: OpenAI, Gemini, Ollama.
+- Compatible con OpenAI (Gemini y Ollama eliminados para simplificar builds).
 
 ---
 
@@ -176,8 +173,7 @@ faq-1,¿Cuáles son los tiempos de entrega?,Los pedidos en Lima se entregan entr
 ## Troubleshooting
 
 - **Qdrant connection error:** Verifica que Qdrant esté corriendo en `http://localhost:6333`
-- **Embedding model not found:** Para Ollama, ejecuta `ollama pull nomic-embed-text`
-- **API key errors:** Asegúrate de configurar `GOOGLE_API_KEY` o `OPENAI_API_KEY` según el provider
+- **API key errors:** Asegúrate de configurar `OPENAI_API_KEY`
 - **Empty search results:** Verifica que las FAQs hayan sido ingestadas correctamente con `ingest_faq.py`
 
 ---

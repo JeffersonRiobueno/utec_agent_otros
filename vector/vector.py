@@ -12,8 +12,6 @@ from qdrant_client import QdrantClient
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Qdrant
 from langchain_core.tools import Tool
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_community.embeddings import OllamaEmbeddings
 
 # ==============
 # Config & setup
@@ -23,21 +21,9 @@ load_dotenv()
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY") or None
 
-EMBEDDINGS_PROVIDER = os.getenv("EMBEDDINGS_PROVIDER", "ollama").lower()
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-# Selección dinámica de embeddings
-if EMBEDDINGS_PROVIDER == "openai":
-    EMB = OpenAIEmbeddings()
-    print("[INFO] Usando OpenAIEmbeddings para embeddings.")
-elif EMBEDDINGS_PROVIDER == "gemini":
-    EMB = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=GOOGLE_API_KEY)
-    print("[INFO] Usando GoogleGenerativeAIEmbeddings (Gemini) para embeddings.")
-else:
-    EMB = OllamaEmbeddings(base_url=OLLAMA_BASE_URL, model="nomic-embed-text")
-    print(f"[INFO] Usando OllamaEmbeddings para embeddings (modelo: nomic-embed-text, url: {OLLAMA_BASE_URL}).")
+# Use OpenAI embeddings only to simplify dependencies
+EMB = OpenAIEmbeddings()
+print("[INFO] Usando OpenAIEmbeddings para embeddings.")
 
 def _client() -> QdrantClient:
     return QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
